@@ -1,54 +1,50 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <arpa/inet.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
 
-#define PORT 8080
-#define BUFFER_SIZE 1024
-
-void calculate_crc(char *data, char *crc_result)
-{
-    // Simple XOR-based CRC calculation
-    int crc = 0;
-    for (int i = 0; i < strlen(data); i++)
-    {
-        crc ^= (data[i] - '0');
-    }
-    sprintf(crc_result, "%02d", crc);
-}
+#define PORT 5035
+#define MAX_SIZE 30
 
 int main()
 {
-    int sock = 0;
-    struct sockaddr_in serv_addr;
-    char dividend[BUFFER_SIZE] = {0};
-    char divisor[BUFFER_SIZE] = {0};
-    char buffer[BUFFER_SIZE] = {0};
+    int sock_fd;
+    struct sockaddr_in server_addr;
+    char dividend[MAX_SIZE], divisor[MAX_SIZE];
+    char quotient[MAX_SIZE], remainder[60], crc[10];
 
-    sock = socket(AF_INET, SOCK_STREAM, 0);
+    // Create socket
+    sock_fd = socket(AF_INET, SOCK_STREAM, 0);
 
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(PORT);
-    inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr);
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(PORT);
+    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-    connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr));
+    connect(sock_fd, (struct sockaddr *)&server_addr, sizeof(server_addr));
 
-    printf("Enter the dividend: ");
+    // Get input
+    printf("\nEnter the dividend: ");
     scanf("%s", dividend);
-
-    printf("Enter the divisor: ");
+    printf("\nEnter the divisor: ");
     scanf("%s", divisor);
 
-    // Send data to server
-    send(sock, dividend, strlen(dividend), 0);
-    send(sock, divisor, strlen(divisor), 0);
+    // Send data
+    write(sock_fd, dividend, MAX_SIZE);
+    write(sock_fd, divisor, MAX_SIZE);
 
-    // Receive server result
-    read(sock, buffer, BUFFER_SIZE);
-    printf("\nServer result:\n%s", buffer);
+    printf("\nServer result:");
 
-    close(sock);
+    // Receive results
+    read(sock_fd, quotient, MAX_SIZE);
+    read(sock_fd, remainder, 60);
+    read(sock_fd, crc, 10);
+
+    printf("\n\nQuotient=%s", quotient);
+    printf("\n\nRemainder=%s", remainder);
+    printf("\n\nCRC values=%s\n", crc);
+
+    close(sock_fd);
     return 0;
 }
